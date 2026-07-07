@@ -217,6 +217,16 @@
         <button class="btn ghost" id="editProfileBtn">Edit my habit details</button>
         <button class="btn danger" id="resetBtn">Reset all data &amp; start over</button>
       </div>
+      <div class="card">
+        <h1>Backup</h1>
+        <p class="lead">Your data stays on this device only. Clearing your browser will erase it — export a backup file now and then import it if you switch browsers or devices.</p>
+        <div class="row">
+          <button class="btn ghost" id="exportDataBtn">Export my data</button>
+          <button class="btn ghost" id="importDataBtn">Import data</button>
+        </div>
+        <input type="file" id="importDataInput" accept="application/json" hidden>
+        <p class="lead" id="importStatus"></p>
+      </div>
     </section>
 
   </main>

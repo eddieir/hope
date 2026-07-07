@@ -1276,6 +1276,63 @@
     }
   });
 
+  /* ---------- backup: export / import ---------- */
+
+  function exportData() {
+    if (!state) return;
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quitpath-backup-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function isValidImportedState(data) {
+    return !!data && typeof data === "object" &&
+      typeof data.profile === "object" && data.profile !== null &&
+      typeof data.startDate === "string" &&
+      typeof data.quitDate === "string" &&
+      Array.isArray(data.logs);
+  }
+
+  function importData(file) {
+    const statusEl = document.getElementById("importStatus");
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed;
+      try {
+        parsed = JSON.parse(reader.result);
+      } catch (e) {
+        if (statusEl) statusEl.textContent = "That file doesn't look like a QuitPath backup — it couldn't be read as JSON.";
+        return;
+      }
+      if (!isValidImportedState(parsed)) {
+        if (statusEl) statusEl.textContent = "That file doesn't look like a QuitPath backup — it's missing some expected data.";
+        return;
+      }
+      if (!confirm("This replaces all data currently on this device with the imported backup. Continue?")) return;
+      state = parsed;
+      saveData(state);
+      if (statusEl) statusEl.textContent = "Import complete.";
+      showView("dashboard");
+    };
+    reader.readAsText(file);
+  }
+
+  document.getElementById("exportDataBtn").addEventListener("click", exportData);
+  document.getElementById("importDataBtn").addEventListener("click", () => {
+    document.getElementById("importDataInput").click();
+  });
+  document.getElementById("importDataInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importData(file);
+    e.target.value = "";
+  });
+
   /* ---------- service worker ---------- */
 
   function showUpdateBanner() {
