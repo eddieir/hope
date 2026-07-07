@@ -272,6 +272,11 @@
     const daysSinceQuit = Math.max(daysBetween(quitDate, today), 0);
     const hoursSinceQuit = isTapering ? 0 : daysSinceQuit * 24 + (new Date().getHours());
 
+    const isCigLog = (l) => l.type === "cigarette" || l.type === "slip";
+    const cigsLoggedToday = logs.filter((l) => isCigLog(l) && toLocalDateStr(new Date(l.date)) === today).length;
+    const quitDateStart = new Date(quitDate + "T00:00:00");
+    const cigsLoggedSinceQuit = logs.filter((l) => isCigLog(l) && new Date(l.date) >= quitDateStart).length;
+
     let html = "";
 
     html += `
@@ -300,6 +305,21 @@
           <div class="progress-bar"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
           <p class="lead" style="margin-top:4px">${pct}% of the way through your step-down plan.</p>
         </div>
+
+        <div class="card">
+          <h2>Log what you smoke</h2>
+          <p class="lead">Every cigarette counts toward today's tally, whether you're on target or not — logging honestly is what makes the plan work.</p>
+          <div class="today-tally ${cigsLoggedToday > target ? "over" : ""}">
+            <span class="tally-count">${cigsLoggedToday}</span>
+            <span class="tally-of">of ${target} target today</span>
+          </div>
+          <div class="craving-actions">
+            <button class="btn primary" id="logCigarette">I smoked one 🚬</button>
+            <button class="btn ghost" id="logCraving">I had a craving — resisted 💪</button>
+          </div>
+          <div class="log-list" id="recentLogs"></div>
+        </div>
+
         <div class="card">
           <h2>Your step-down schedule</h2>
           <table class="taper-table">
@@ -314,7 +334,7 @@
         </div>
       `;
     } else {
-      const cigsAvoided = daysSinceQuit * cigsPerDay;
+      const cigsAvoided = Math.max(daysSinceQuit * cigsPerDay - cigsLoggedSinceQuit, 0);
       const moneySaved = cigsAvoided * costPerCig;
       const minutesSaved = cigsAvoided * 6; // ~6 min per cigarette incl. breaks
       const hoursSaved = minutesSaved / 60;
@@ -330,15 +350,18 @@
             <div class="stat"><div class="value">${fmtNum(hoursSaved)}</div><div class="label">Hours reclaimed</div></div>
             <div class="stat"><div class="value">${daysSinceQuit}</div><div class="label">Days smoke-free</div></div>
           </div>
+          ${cigsLoggedSinceQuit > 0 ? `<p class="lead" style="margin:12px 0 0">You've logged ${cigsLoggedSinceQuit} cigarette${cigsLoggedSinceQuit === 1 ? "" : "s"} since your quit date. That's not a restart — keep logging honestly and keep going.</p>` : ""}
         </div>
 
         <div class="card">
           <h2>How you're feeling right now</h2>
-          <label class="field" style="margin-top:8px">
-          </label>
+          <div class="today-tally ${cigsLoggedToday > 0 ? "over" : ""}">
+            <span class="tally-count">${cigsLoggedToday}</span>
+            <span class="tally-of">smoked today</span>
+          </div>
           <div class="craving-actions">
             <button class="btn primary" id="logCraving">I had a craving — resisted 💪</button>
-            <button class="btn ghost" id="logSlip">I smoked one</button>
+            <button class="btn ghost" id="logCigarette">I smoked one</button>
           </div>
           <div class="log-list" id="recentLogs"></div>
         </div>
@@ -370,7 +393,7 @@
     }
 
     const cravingBtn = document.getElementById("logCraving");
-    const slipBtn = document.getElementById("logSlip");
+    const cigaretteBtn = document.getElementById("logCigarette");
     if (cravingBtn) {
       cravingBtn.addEventListener("click", () => {
         state.logs.push({ date: new Date().toISOString(), type: "resisted" });
@@ -378,9 +401,9 @@
         renderDashboard();
       });
     }
-    if (slipBtn) {
-      slipBtn.addEventListener("click", () => {
-        state.logs.push({ date: new Date().toISOString(), type: "slip" });
+    if (cigaretteBtn) {
+      cigaretteBtn.addEventListener("click", () => {
+        state.logs.push({ date: new Date().toISOString(), type: "cigarette" });
         saveData(state);
         renderDashboard();
       });
@@ -402,7 +425,7 @@
     const recent = state.logs.slice(-5).reverse();
     box.innerHTML = "Recent: " + recent.map((l) => {
       const t = new Date(l.date);
-      const label = l.type === "slip" ? "smoked one" : "resisted a craving";
+      const label = (l.type === "cigarette" || l.type === "slip") ? "smoked one" : "resisted a craving";
       return `${label} at ${t.toLocaleString()}`;
     }).join(" · ");
   }

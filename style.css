@@ -254,6 +254,23 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
 .milestone-list li:not(.done) .milestone-label { color: var(--text-muted); }
 .milestone-time { font-size: 0.75rem; color: var(--text-muted); min-width: 70px; }
 
+.today-tally {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--success) 10%, var(--card-bg));
+  border: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+.today-tally .tally-count { font-size: 1.5rem; font-weight: 800; color: var(--success); }
+.today-tally .tally-of { font-size: 0.85rem; color: var(--text-muted); }
+.today-tally.over {
+  background: color-mix(in srgb, var(--danger) 10%, var(--card-bg));
+}
+.today-tally.over .tally-count { color: var(--danger); }
+
 .craving-actions { display: flex; gap: 10px; margin-top: 14px; }
 .craving-actions .btn { flex: 1; }
 
