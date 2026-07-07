@@ -306,6 +306,61 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
 .taper-table tr.today-row { font-weight: 700; color: var(--primary); }
 .taper-table tr.past-row { color: var(--text-muted); }
 
+.schedule-header { align-items: center; justify-content: space-between; margin-bottom: 0; }
+.schedule-header h2 { margin: 0; }
+.schedule-view-toggle { font-size: 0.8rem; padding: 8px 14px; flex: none; }
+
+.schedule-chart-wrap { overflow-x: auto; margin-top: 10px; -webkit-overflow-scrolling: touch; }
+.schedule-chart { display: flex; align-items: flex-end; gap: 8px; padding: 26px 4px 4px; width: max-content; min-width: 100%; }
+
+.chart-col { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
+.chart-bar-btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  width: 20px;
+}
+.chart-bar-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
+
+.chart-track { position: relative; width: 14px; display: block; }
+.chart-bar {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  background: var(--border);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+.chart-bar-btn.past .chart-bar { background: var(--text-muted); opacity: 0.5; }
+.chart-bar-btn.today .chart-bar { background: var(--primary); }
+
+.chart-bar-value {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+.chart-bar-btn.today .chart-bar-value,
+.chart-bar-btn.show-value .chart-bar-value { opacity: 1; }
+
+.chart-x-label { font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; }
+
 .quote-card {
   text-align: center;
   background: linear-gradient(135deg,

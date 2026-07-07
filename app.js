@@ -20,6 +20,7 @@
   }
 
   let state = loadData();
+  let scheduleViewMode = "chart"; // "chart" | "table" — transient UI state, not persisted
 
   /* ---------- helpers ---------- */
 
@@ -38,6 +39,12 @@
     const d1 = new Date(a + "T00:00:00");
     const d2 = new Date(b + "T00:00:00");
     return Math.round((d2 - d1) / DAY_MS);
+  }
+
+  const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  function shortDateLabel(dateStr) {
+    const d = new Date(dateStr + "T00:00:00");
+    return `${SHORT_MONTHS[d.getMonth()]} ${d.getDate()}`;
   }
 
   function fmtMoney(n) {
@@ -77,6 +84,70 @@
       schedule.push({ date: dateStr, target });
     }
     return schedule;
+  }
+
+  /* ---------- step-down schedule chart ---------- */
+
+  function scheduleLabelIndices(schedule, todayIdx) {
+    const n = schedule.length;
+    const lastIdx = n - 1;
+    const step = Math.max(3, Math.min(7, Math.ceil(n / 8)));
+    const idx = new Set([0, lastIdx]);
+    if (todayIdx >= 0) idx.add(todayIdx);
+    for (let i = 0; i < n; i += step) idx.add(i);
+    return idx;
+  }
+
+  function scheduleChartHtml(schedule, todayDateStr) {
+    const n = schedule.length;
+    const maxTarget = Math.max(...schedule.map((s) => s.target), 1);
+    const todayIdx = schedule.findIndex((s) => s.date === todayDateStr);
+    const labelIdx = scheduleLabelIndices(schedule, todayIdx);
+    const trackPx = 100;
+
+    const firstTarget = schedule[0].target;
+    const lastTarget = schedule[n - 1].target;
+    const ariaLabel = `Target cigarettes per day, stepping down from ${firstTarget} to ${lastTarget} over ${n} day${n === 1 ? "" : "s"}.`;
+
+    const bars = schedule.map((s, i) => {
+      const isToday = s.date === todayDateStr;
+      const isPast = s.date < todayDateStr;
+      const barPx = Math.max(3, Math.round((s.target / maxTarget) * trackPx));
+      const label = labelIdx.has(i) ? shortDateLabel(s.date) : "";
+      return `
+        <div class="chart-col">
+          <button type="button" class="chart-bar-btn ${isToday ? "today" : ""} ${isPast ? "past" : ""}" data-bar-index="${i}" aria-label="${s.date}: ${s.target} cigarette${s.target === 1 ? "" : "s"}">
+            <span class="chart-bar-value">${s.target}</span>
+            <span class="chart-track" style="height:${trackPx}px">
+              <span class="chart-bar" style="height:${barPx}px"></span>
+            </span>
+          </button>
+          <span class="chart-x-label">${label}</span>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="schedule-chart-wrap">
+        <div class="schedule-chart" role="group" aria-label="${ariaLabel}">
+          ${bars}
+        </div>
+      </div>
+    `;
+  }
+
+  function scheduleTableHtml(schedule, todayDateStr) {
+    return `
+      <table class="taper-table">
+        <thead><tr><th>Date</th><th>Target / day</th></tr></thead>
+        <tbody>
+          ${schedule.map((s) => {
+            const rowClass = s.date === todayDateStr ? "today-row" : (s.date < todayDateStr ? "past-row" : "");
+            return `<tr class="${rowClass}"><td>${s.date}</td><td>${s.target}</td></tr>`;
+          }).join("")}
+        </tbody>
+      </table>
+    `;
   }
 
   const QUOTES = [
@@ -977,16 +1048,12 @@
         ${analyticsCard(analytics)}
 
         <div class="card">
-          <h2>Your step-down schedule</h2>
-          <table class="taper-table">
-            <thead><tr><th>Date</th><th>Target / day</th></tr></thead>
-            <tbody>
-              ${state.schedule.map((s) => {
-                const rowClass = s.date === today ? "today-row" : (s.date < today ? "past-row" : "");
-                return `<tr class="${rowClass}"><td>${s.date}</td><td>${s.target}</td></tr>`;
-              }).join("")}
-            </tbody>
-          </table>
+          <div class="row schedule-header">
+            <h2>Your step-down schedule</h2>
+            <button class="btn ghost schedule-view-toggle" id="scheduleViewToggle">${scheduleViewMode === "chart" ? "View as table" : "View as chart"}</button>
+          </div>
+          <p class="lead">Tap a bar to see that day's exact number.</p>
+          ${scheduleViewMode === "chart" ? scheduleChartHtml(state.schedule, today) : scheduleTableHtml(state.schedule, today)}
         </div>
       `;
     } else {
@@ -1067,6 +1134,17 @@
 
     const crisisBtn = document.getElementById("crisisBtn");
     if (crisisBtn) crisisBtn.addEventListener("click", openCrisisFlow);
+
+    const scheduleViewToggle = document.getElementById("scheduleViewToggle");
+    if (scheduleViewToggle) {
+      scheduleViewToggle.addEventListener("click", () => {
+        scheduleViewMode = scheduleViewMode === "chart" ? "table" : "chart";
+        renderDashboard();
+      });
+    }
+    document.querySelectorAll(".chart-bar-btn").forEach((btn) => {
+      btn.addEventListener("click", () => btn.classList.toggle("show-value"));
+    });
 
     const smokedAnywayBtn = document.getElementById("delaySmokedBtn");
     if (smokedAnywayBtn) smokedAnywayBtn.addEventListener("click", () => endUrgeDelayEarly("smoked"));

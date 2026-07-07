@@ -1,4 +1,4 @@
-const CACHE_NAME = "quitpath-v10";
+const CACHE_NAME = "quitpath-v11";
 const ASSETS = ["./", "./index.html", "./style.css", "./app.js", "./manifest.json"];
 
 self.addEventListener("install", (event) => {
