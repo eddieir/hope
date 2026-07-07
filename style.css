@@ -362,6 +362,35 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
   .modal-card { border-radius: var(--radius); }
 }
 
+.crisis-btn {
+  display: block;
+  width: 100%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 1.05rem;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.crisis-btn:hover { opacity: 0.92; }
+
+.crisis-card {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+.crisis-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.crisis-tip { font-size: 1.6rem; margin: 0 0 12px; }
+.crisis-action { width: 100%; margin: 12px 0; padding: 16px; font-size: 1.05rem; }
+.crisis-outcomes .row { flex-wrap: wrap; justify-content: center; }
+
 .modal-header {
   display: flex;
   align-items: center;

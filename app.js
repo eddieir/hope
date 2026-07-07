@@ -599,6 +599,48 @@
     });
   }
 
+  /* ---------- crisis flow (craving right now) ---------- */
+
+  function openCrisisFlow() {
+    const focusGroup = recommendedFocusGroup(state);
+    const tips = COPING_SUGGESTIONS[focusGroup] || COPING_SUGGESTIONS.other;
+    const tip = tips[Math.floor(Math.random() * tips.length)];
+    renderCrisisFlow(tip);
+  }
+
+  function renderCrisisFlow(tip) {
+    modalRoot.innerHTML = `
+      <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-card crisis-card">
+          <button class="modal-close" id="modalCloseBtn" aria-label="Close">&times;</button>
+          <p class="crisis-eyebrow">Right now</p>
+          <h2 class="crisis-tip">${tip}</h2>
+          <p class="lead">This craving will pass, whether you smoke or not. You don't have to decide anything else yet.</p>
+          <button class="btn primary crisis-action" id="crisisDelayBtn">Start 10-min delay ▶</button>
+          <div class="crisis-outcomes">
+            <p class="lead" style="margin:16px 0 8px">When you're ready:</p>
+            <div class="row">
+              <button class="btn ghost" id="crisisResistedBtn">I resisted 💪</button>
+              <button class="btn ghost" id="crisisDelayedBtn">I delayed it ⏳</button>
+              <button class="btn ghost" id="crisisSmokedBtn">I smoked 🚬</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.getElementById("modalCloseBtn").addEventListener("click", closeModal);
+    document.getElementById("modalOverlay").addEventListener("click", (e) => {
+      if (e.target.id === "modalOverlay") closeModal();
+    });
+    document.getElementById("crisisDelayBtn").addEventListener("click", () => {
+      closeModal();
+      startUrgeDelay(10);
+    });
+    document.getElementById("crisisResistedBtn").addEventListener("click", () => openQuickLog("resisted"));
+    document.getElementById("crisisDelayedBtn").addEventListener("click", () => openQuickLog("delayed"));
+    document.getElementById("crisisSmokedBtn").addEventListener("click", () => openQuickLog("smoked"));
+  }
+
   /* ---------- urge delay timer ---------- */
 
   function startUrgeDelay(minutes) {
@@ -891,6 +933,8 @@
       </div>
     `;
 
+    html += `<button class="btn crisis-btn" id="crisisBtn">I want to smoke right now 🆘</button>`;
+
     if (isTapering) {
       const daysToGo = daysBetween(today, quitDate);
       const todayEntry = (state.schedule || []).find((s) => s.date === today) ||
@@ -1020,6 +1064,9 @@
 
     const startDelayBtn = document.getElementById("startDelayBtn");
     if (startDelayBtn) startDelayBtn.addEventListener("click", () => startUrgeDelay(10));
+
+    const crisisBtn = document.getElementById("crisisBtn");
+    if (crisisBtn) crisisBtn.addEventListener("click", openCrisisFlow);
 
     const smokedAnywayBtn = document.getElementById("delaySmokedBtn");
     if (smokedAnywayBtn) smokedAnywayBtn.addEventListener("click", () => endUrgeDelayEarly("smoked"));
