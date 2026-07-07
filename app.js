@@ -123,34 +123,38 @@
 
   /* ---------- trigger tracking ---------- */
 
-  // group order defines cutting priority: automatic first, then ritual, then emotional last
+  // group order defines cutting priority: automatic first, then ritual, then emotional last.
+  // "other" is a catch-all with no cutting-priority recommendation of its own.
   const TRIGGERS = [
-    { id: "habit", label: "Habit / automatic", emoji: "🔁", group: "automatic" },
+    { id: "stress", label: "Stress", emoji: "😣", group: "emotional" },
+    { id: "anxiety", label: "Anxiety / Panic", emoji: "😰", group: "emotional" },
+    { id: "anger", label: "Anger", emoji: "😠", group: "emotional" },
+    { id: "sadness", label: "Sadness", emoji: "😢", group: "emotional" },
     { id: "boredom", label: "Boredom", emoji: "🥱", group: "automatic" },
-    { id: "waking", label: "Morning / waking", emoji: "🌅", group: "automatic" },
     { id: "meal", label: "After meal", emoji: "🍽️", group: "ritual" },
     { id: "coffee", label: "Coffee / tea", emoji: "☕", group: "ritual" },
     { id: "workbreak", label: "Work break", emoji: "💼", group: "ritual" },
-    { id: "sleep", label: "Before sleep", emoji: "🌙", group: "ritual" },
-    { id: "alcohol", label: "Alcohol / social", emoji: "🍻", group: "ritual" },
-    { id: "stress", label: "Stress", emoji: "😣", group: "emotional" },
-    { id: "anxiety", label: "Anxiety / panic", emoji: "😰", group: "emotional" },
-    { id: "anger", label: "Anger", emoji: "😠", group: "emotional" },
-    { id: "sadness", label: "Sadness", emoji: "😢", group: "emotional" },
+    { id: "alcohol", label: "Social / alcohol", emoji: "🍻", group: "ritual" },
     { id: "argument", label: "After argument", emoji: "💥", group: "emotional" },
-    { id: "other", label: "Other", emoji: "❓", group: "automatic" },
+    { id: "waking", label: "Morning / after waking", emoji: "🌅", group: "ritual" },
+    { id: "sleep", label: "Before sleep", emoji: "🌙", group: "ritual" },
+    { id: "habit", label: "Habit / automatic", emoji: "🔁", group: "automatic" },
+    { id: "loneliness", label: "Loneliness", emoji: "🥀", group: "emotional" },
+    { id: "other", label: "Other", emoji: "❓", group: "other" },
   ];
   const TRIGGER_BY_ID = Object.fromEntries(TRIGGERS.map((t) => [t.id, t]));
+  const TRIGGER_GROUPS = ["automatic", "ritual", "emotional", "other"];
 
   const GROUP_INFO = {
     automatic: { label: "Automatic", desc: "Low-awareness, habit-based cigarettes — smoking on autopilot, out of boredom, or while scrolling your phone. Usually the easiest to cut first." },
     ritual: { label: "Ritual", desc: "Tied to routines like food, coffee, work breaks, waking up, or before sleep — cut these once automatic ones are down." },
     emotional: { label: "Emotional", desc: "Stress, panic, anger, sadness, arguments, or loneliness — keep these for later, and replace with coping actions." },
+    other: { label: "Other", desc: "Doesn't fit a clear pattern yet — keep logging and a pattern will show up." },
   };
 
   function triggerGroup(triggerId) {
     const t = TRIGGER_BY_ID[triggerId];
-    return t ? t.group : "automatic";
+    return t ? t.group : "other";
   }
 
   const COPING_SUGGESTIONS = {
@@ -176,6 +180,12 @@
       "Wait 10 minutes",
       "Use gum or mint",
     ],
+    other: [
+      "Notice what's going on right now",
+      "Drink water",
+      "Take a short walk",
+      "Do something with your hands",
+    ],
   };
 
   const NON_SHAMING_MESSAGES = {
@@ -183,19 +193,43 @@
       "Logged. This is data, not failure.",
       "A slip does not restart your progress.",
       "Notice the trigger and continue.",
+      "A logged cigarette is still progress because it gives you information.",
     ],
     resisted: [
       "Notice the trigger and continue.",
       "Logged. This is data, not failure.",
+      "You're learning your pattern.",
     ],
     delayed: [
       "You delayed it — that still counts as progress.",
       "Notice the trigger and continue.",
+      "You're learning your pattern.",
     ],
   };
   function nonShamingMessage(outcome) {
     const pool = NON_SHAMING_MESSAGES[outcome] || NON_SHAMING_MESSAGES.smoked;
     return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  /* ---------- log field helpers (read new + legacy field shapes transparently) ---------- */
+
+  function getTriggerId(l) {
+    return l.triggerId || l.trigger || null;
+  }
+  function getTriggerLabel(l) {
+    if (l.triggerLabel) return l.triggerLabel;
+    const id = getTriggerId(l);
+    return id && TRIGGER_BY_ID[id] ? TRIGGER_BY_ID[id].label : null;
+  }
+  function getTriggerGroupOf(l) {
+    if (l.triggerGroup) return l.triggerGroup;
+    const id = getTriggerId(l);
+    return id ? triggerGroup(id) : null;
+  }
+  function getIntensity(l) {
+    if (typeof l.cravingIntensity === "number") return l.cravingIntensity;
+    if (typeof l.intensity === "number") return l.intensity;
+    return null;
   }
 
   const DELAY_OPTIONS = [
@@ -233,33 +267,50 @@
     return l.outcome === "delayed" || (l.outcome == null && !l.smoked && typeof l.delayMinutes === "number" && l.delayMinutes > 0);
   }
 
+  /* returns { mostCommon: triggerId|null, counts: {id: count} } for smoked entries in a set of logs */
+  function triggerCountsOf(entries) {
+    const counts = {};
+    entries.forEach((l) => {
+      const id = getTriggerId(l);
+      if (!id) return;
+      counts[id] = (counts[id] || 0) + 1;
+    });
+    let mostCommon = null;
+    let mostCommonCount = 0;
+    Object.entries(counts).forEach(([id, count]) => {
+      if (count > mostCommonCount) { mostCommonCount = count; mostCommon = id; }
+    });
+    return { mostCommon, counts };
+  }
+
   function computeWeeklyAnalytics(logs) {
     const week = last7DaysLogs(logs);
     const prevWeek = prevWeekLogs(logs);
-    const smoked = week.filter((l) => l.smoked && l.trigger);
+    const today = todayStr();
+    const todayLogs = logs.filter((l) => toLocalDateStr(new Date(l.date)) === today);
+
+    const smoked = week.filter((l) => l.smoked && getTriggerId(l));
     const resisted = week.filter((l) => !l.smoked);
     const delayed = week.filter(isDelayedOutcome);
+    const smokedToday = todayLogs.filter((l) => l.smoked && getTriggerId(l));
 
-    const intensityValues = week.filter((l) => typeof l.intensity === "number").map((l) => l.intensity);
+    const intensityValues = week.filter((l) => typeof getIntensity(l) === "number").map((l) => getIntensity(l));
     const avgIntensity = intensityValues.length
       ? intensityValues.reduce((sum, n) => sum + n, 0) / intensityValues.length
       : null;
 
-    const triggerCounts = {};
+    const { mostCommon: mostCommonTrigger, counts: triggerCounts } = triggerCountsOf(smoked);
+    const { mostCommon: mostCommonTriggerToday } = triggerCountsOf(smokedToday);
+
     const triggerIntensitySum = {};
     const triggerIntensityCount = {};
     smoked.forEach((l) => {
-      triggerCounts[l.trigger] = (triggerCounts[l.trigger] || 0) + 1;
-      if (typeof l.intensity === "number") {
-        triggerIntensitySum[l.trigger] = (triggerIntensitySum[l.trigger] || 0) + l.intensity;
-        triggerIntensityCount[l.trigger] = (triggerIntensityCount[l.trigger] || 0) + 1;
+      const id = getTriggerId(l);
+      const intensity = getIntensity(l);
+      if (typeof intensity === "number") {
+        triggerIntensitySum[id] = (triggerIntensitySum[id] || 0) + intensity;
+        triggerIntensityCount[id] = (triggerIntensityCount[id] || 0) + 1;
       }
-    });
-
-    let mostCommonTrigger = null;
-    let mostCommonCount = 0;
-    Object.entries(triggerCounts).forEach(([id, count]) => {
-      if (count > mostCommonCount) { mostCommonCount = count; mostCommonTrigger = id; }
     });
 
     let strongestTrigger = null;
@@ -274,8 +325,8 @@
       ? delaysSmoked.reduce((sum, l) => sum + l.delayMinutes, 0) / delaysSmoked.length
       : null;
 
-    const automaticThisWeek = smoked.filter((l) => triggerGroup(l.trigger) === "automatic").length;
-    const automaticPrevWeek = prevWeek.filter((l) => l.smoked && l.trigger && triggerGroup(l.trigger) === "automatic").length;
+    const automaticThisWeek = smoked.filter((l) => getTriggerGroupOf(l) === "automatic").length;
+    const automaticPrevWeek = prevWeek.filter((l) => l.smoked && getTriggerId(l) && getTriggerGroupOf(l) === "automatic").length;
     const automaticReduced = automaticPrevWeek > 0 ? Math.max(automaticPrevWeek - automaticThisWeek, 0) : null;
 
     // best smoke-free window: bucket smoked cigs into 4 parts of day, find the quietest
@@ -292,20 +343,20 @@
     });
     const bestWindow = smoked.length ? buckets.reduce((a, b) => (b.count < a.count ? b : a)) : null;
 
-    const groupCounts = { automatic: 0, ritual: 0, emotional: 0 };
-    smoked.forEach((l) => { groupCounts[triggerGroup(l.trigger)]++; });
+    const groupCounts = { automatic: 0, ritual: 0, emotional: 0, other: 0 };
+    smoked.forEach((l) => { groupCounts[getTriggerGroupOf(l)]++; });
     const groupTotal = smoked.length;
 
-    // top triggers for the chart: top 4 + "other" bucket for the rest
+    // top triggers for the chart: top 4 individual triggers + a rolled-up "other triggers" bucket for the rest
     const sortedTriggers = Object.entries(triggerCounts).sort((a, b) => b[1] - a[1]);
     const total = smoked.length;
     const topN = sortedTriggers.slice(0, 4);
     const restCount = sortedTriggers.slice(4).reduce((s, [, c]) => s + c, 0);
     const triggerBreakdown = topN.map(([id, count]) => ({
-      id, count, pct: total ? Math.round((count / total) * 100) : 0,
+      id, label: TRIGGER_BY_ID[id] ? TRIGGER_BY_ID[id].label : "Other", count, pct: total ? Math.round((count / total) * 100) : 0,
     }));
     if (restCount > 0) {
-      triggerBreakdown.push({ id: "other", count: restCount, pct: total ? Math.round((restCount / total) * 100) : 0 });
+      triggerBreakdown.push({ id: "__rest__", label: "Other triggers", count: restCount, pct: total ? Math.round((restCount / total) * 100) : 0 });
     }
 
     return {
@@ -314,6 +365,7 @@
       totalDelayed: delayed.length,
       avgIntensity,
       mostCommonTrigger,
+      mostCommonTriggerToday,
       strongestTrigger,
       strongestAvg: strongestTrigger ? strongestAvg : null,
       avgDelay,
@@ -322,7 +374,7 @@
       groupCounts,
       groupTotal,
       triggerBreakdown,
-      hasData: smoked.length > 0 || resisted.length > 0,
+      hasData: smoked.length > 0 || resisted.length > 0 || delayed.length > 0,
     };
   }
 
@@ -330,9 +382,9 @@
   function recommendedFocusGroup(state) {
     const today = todayStr();
     const isTapering = state.quitDate > today;
-    const week = last7DaysLogs(state.logs).filter((l) => l.smoked && l.trigger);
-    const groupCounts = { automatic: 0, ritual: 0, emotional: 0 };
-    week.forEach((l) => groupCounts[triggerGroup(l.trigger)]++);
+    const week = last7DaysLogs(state.logs).filter((l) => l.smoked && getTriggerId(l));
+    const groupCounts = { automatic: 0, ritual: 0, emotional: 0, other: 0 };
+    week.forEach((l) => groupCounts[getTriggerGroupOf(l)]++);
 
     if (!isTapering) return "emotional"; // post-quit: focus on replacing emotional smoking with coping
 
@@ -509,8 +561,10 @@
       type: smoked ? "cigarette" : "resisted",
       outcome: draft.kind,
       smoked,
-      trigger: draft.trigger,
-      intensity: draft.intensity,
+      triggerId: draft.trigger,
+      triggerLabel: draft.trigger ? TRIGGER_BY_ID[draft.trigger].label : null,
+      triggerGroup: draft.trigger ? triggerGroup(draft.trigger) : null,
+      cravingIntensity: draft.intensity,
       delayMinutes: draft.kind === "resisted" ? null : draft.delayMinutes,
       note: note || "",
     };
@@ -522,7 +576,7 @@
   }
 
   function showPostLogMessage(entry) {
-    const group = entry.trigger ? triggerGroup(entry.trigger) : null;
+    const group = getTriggerGroupOf(entry);
     const message = nonShamingMessage(entry.outcome || (entry.smoked ? "smoked" : "resisted"));
     let suggestion = "";
     if (group && COPING_SUGGESTIONS[group]) {
@@ -653,8 +707,10 @@
       type: draft.stillSmoked ? "cigarette" : "resisted",
       outcome: "delayed",
       smoked: draft.stillSmoked,
-      trigger: draft.trigger,
-      intensity: draft.intensity,
+      triggerId: draft.trigger,
+      triggerLabel: draft.trigger ? TRIGGER_BY_ID[draft.trigger].label : null,
+      triggerGroup: draft.trigger ? triggerGroup(draft.trigger) : null,
+      cravingIntensity: draft.intensity,
       delayMinutes: draft.elapsedMinutes,
       note: draft.whatHelped ? `Helped: ${draft.whatHelped}` : "",
       cravingReduced: draft.cravingReduced,
@@ -1001,9 +1057,34 @@
     `;
   }
 
+  /* non-shaming coaching line, stable for the day so it doesn't flicker between re-renders */
+  function patternMessage(a) {
+    const base = NON_SHAMING_MESSAGES.smoked[dayOfYear(new Date()) % NON_SHAMING_MESSAGES.smoked.length];
+    if (!a.groupTotal) return base;
+
+    let dominant = null;
+    let max = 0;
+    TRIGGER_GROUPS.forEach((g) => {
+      if (a.groupCounts[g] > max) { max = a.groupCounts[g]; dominant = g; }
+    });
+    if (!dominant) return base;
+
+    if (dominant === "emotional") {
+      const label = a.mostCommonTrigger && TRIGGER_BY_ID[a.mostCommonTrigger] ? TRIGGER_BY_ID[a.mostCommonTrigger].label.toLowerCase() : "emotional";
+      return `Most of your cigarettes this week were ${label}-related. Don't attack these first — start by reducing automatic cigarettes and use delay/coping tools for ${label} smokes. ${base}`;
+    }
+    if (dominant === "automatic") {
+      return `Most of your cigarettes this week were automatic — good news, these are usually the easiest to cut first. ${base}`;
+    }
+    if (dominant === "ritual") {
+      return `Most of your cigarettes this week were tied to routines like meals, coffee, or breaks. Once automatic ones are down, these are next. ${base}`;
+    }
+    return base;
+  }
+
   function analyticsCard(a) {
     if (!a.hasData) return "";
-    const groupRows = ["automatic", "ritual", "emotional"].map((g) => {
+    const groupRows = TRIGGER_GROUPS.map((g) => {
       const count = a.groupCounts[g];
       const pct = a.groupTotal ? Math.round((count / a.groupTotal) * 100) : 0;
       return { g, count, pct };
@@ -1011,11 +1092,15 @@
 
     return `
       <div class="card">
-        <h2>Your week in triggers</h2>
-        <p class="lead">Insights from the last 7 days of logging.</p>
+        <h2>Your smoking patterns</h2>
+        <p class="lead">${patternMessage(a)}</p>
         <div class="insight-grid">
-          <div class="insight"><div class="insight-value">${a.mostCommonTrigger ? TRIGGER_BY_ID[a.mostCommonTrigger].label : "—"}</div><div class="insight-label">Most common trigger</div></div>
+          <div class="insight"><div class="insight-value">${a.mostCommonTriggerToday ? TRIGGER_BY_ID[a.mostCommonTriggerToday].label : "—"}</div><div class="insight-label">Top trigger today</div></div>
+          <div class="insight"><div class="insight-value">${a.mostCommonTrigger ? TRIGGER_BY_ID[a.mostCommonTrigger].label : "—"}</div><div class="insight-label">Top trigger this week</div></div>
           <div class="insight"><div class="insight-value">${a.strongestTrigger ? TRIGGER_BY_ID[a.strongestTrigger].label : "—"}</div><div class="insight-label">Strongest craving trigger</div></div>
+          <div class="insight"><div class="insight-value">${a.groupCounts.emotional}</div><div class="insight-label">Emotional cigarettes</div></div>
+          <div class="insight"><div class="insight-value">${a.groupCounts.ritual}</div><div class="insight-label">Ritual cigarettes</div></div>
+          <div class="insight"><div class="insight-value">${a.groupCounts.automatic}</div><div class="insight-label">Automatic cigarettes</div></div>
           <div class="insight"><div class="insight-value">${a.totalResisted}</div><div class="insight-label">Cravings resisted</div></div>
           <div class="insight"><div class="insight-value">${a.totalDelayed}</div><div class="insight-label">Cravings delayed</div></div>
           <div class="insight"><div class="insight-value">${a.avgIntensity !== null ? a.avgIntensity.toFixed(1) + "/10" : "—"}</div><div class="insight-label">Average craving intensity</div></div>
@@ -1027,16 +1112,13 @@
         ${a.triggerBreakdown.length ? `
           <h2 style="margin-top:20px">Your top smoking triggers this week</h2>
           <div class="trigger-bars">
-            ${a.triggerBreakdown.map((tb, i) => {
-              const label = tb.id === "other" ? "Other" : TRIGGER_BY_ID[tb.id].label;
-              return `
+            ${a.triggerBreakdown.map((tb, i) => `
                 <div class="trigger-bar-row">
-                  <span class="trigger-bar-label">${label}</span>
+                  <span class="trigger-bar-label">${tb.label}</span>
                   <div class="trigger-bar-track"><div class="trigger-bar-fill series-${i + 1}" style="width:${tb.pct}%"></div></div>
                   <span class="trigger-bar-pct">${tb.pct}%</span>
                 </div>
-              `;
-            }).join("")}
+              `).join("")}
           </div>
         ` : ""}
 
@@ -1046,7 +1128,7 @@
             ${groupRows.map((r) => r.pct > 0 ? `<div class="group-bar-seg group-${r.g}" style="width:${r.pct}%" title="${GROUP_INFO[r.g].label}: ${r.pct}%"></div>` : "").join("")}
           </div>
           <div class="group-legend">
-            ${groupRows.map((r) => `<span class="group-legend-item"><span class="group-swatch group-${r.g}"></span>${GROUP_INFO[r.g].label} ${r.pct}%</span>`).join("")}
+            ${groupRows.filter((r) => r.count > 0).map((r) => `<span class="group-legend-item"><span class="group-swatch group-${r.g}"></span>${GROUP_INFO[r.g].label} ${r.pct}%</span>`).join("")}
           </div>
         ` : ""}
       </div>
@@ -1061,14 +1143,27 @@
     return Math.round(hours / (24 * 365)) + " yr";
   }
 
+  const RECENT_LOG_VERBS = {
+    smoked: "🚬 Smoked",
+    resisted: "💪 Resisted",
+    delayed: "⏳ Delayed",
+  };
+
   function renderRecentLogs() {
     const box = document.getElementById("recentLogs");
     if (!box || !state.logs.length) return;
     const recent = state.logs.slice(-5).reverse();
     box.innerHTML = "Recent: " + recent.map((l) => {
       const t = new Date(l.date);
-      const label = (l.type === "cigarette" || l.type === "slip") ? "smoked one" : "resisted a craving";
-      return `${label} at ${t.toLocaleString()}`;
+      const outcome = l.outcome || (l.smoked ? "smoked" : "resisted");
+      const verb = RECENT_LOG_VERBS[outcome] || (l.smoked ? RECENT_LOG_VERBS.smoked : RECENT_LOG_VERBS.resisted);
+      const triggerLabel = getTriggerLabel(l);
+      const intensity = getIntensity(l);
+      const parts = [verb];
+      if (triggerLabel) parts.push(triggerLabel);
+      if (typeof intensity === "number") parts.push(`intensity ${intensity}/10`);
+      parts.push(t.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+      return parts.join(" — ");
     }).join(" · ");
   }
 

@@ -487,6 +487,7 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
 .group-automatic { background: var(--series-1); }
 .group-ritual { background: var(--series-2); }
 .group-emotional { background: var(--series-4); }
+.group-other { background: var(--series-3); }
 
 .group-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
 .group-legend-item { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
