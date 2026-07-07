@@ -16,7 +16,26 @@
   }
 
   function saveData(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return true;
+    } catch (e) {
+      showStorageWarningBanner();
+      return false;
+    }
+  }
+
+  function showStorageWarningBanner() {
+    if (document.getElementById("storageWarningBanner")) return;
+    const banner = document.createElement("div");
+    banner.id = "storageWarningBanner";
+    banner.className = "update-banner storage-banner";
+    banner.innerHTML = `
+      <span>This device isn't saving new changes right now (storage may be full or restricted). Everything still works for this session — try freeing up space, or exporting a backup from Settings once you're able to save again.</span>
+      <button class="btn ghost" id="storageWarningCloseBtn" aria-label="Dismiss">&times;</button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById("storageWarningCloseBtn").addEventListener("click", () => banner.remove());
   }
 
   let state = loadData();
@@ -1427,6 +1446,9 @@
   function importData(file) {
     const statusEl = document.getElementById("importStatus");
     const reader = new FileReader();
+    reader.onerror = () => {
+      if (statusEl) statusEl.textContent = "Couldn't read that file — try picking it again.";
+    };
     reader.onload = () => {
       let parsed;
       try {
@@ -1441,8 +1463,8 @@
       }
       if (!confirm("This replaces all data currently on this device with the imported backup. Continue?")) return;
       state = parsed;
-      saveData(state);
-      if (statusEl) statusEl.textContent = "Import complete.";
+      const saved = saveData(state);
+      if (statusEl) statusEl.textContent = saved ? "Import complete." : "Imported for this session, but this device couldn't save it permanently (storage may be full or restricted).";
       showView("dashboard");
     };
     reader.readAsText(file);
