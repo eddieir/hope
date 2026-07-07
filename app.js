@@ -143,9 +143,9 @@
   const TRIGGER_BY_ID = Object.fromEntries(TRIGGERS.map((t) => [t.id, t]));
 
   const GROUP_INFO = {
-    automatic: { label: "Automatic", desc: "Low-awareness, habit-based cigarettes — usually the easiest to cut first." },
-    ritual: { label: "Ritual", desc: "Tied to routines like food, coffee, or work breaks — cut once automatic ones are down." },
-    emotional: { label: "Emotional", desc: "Stress, panic, anger, sadness — keep these for later, and replace with coping actions." },
+    automatic: { label: "Automatic", desc: "Low-awareness, habit-based cigarettes — smoking on autopilot, out of boredom, or while scrolling your phone. Usually the easiest to cut first." },
+    ritual: { label: "Ritual", desc: "Tied to routines like food, coffee, work breaks, waking up, or before sleep — cut these once automatic ones are down." },
+    emotional: { label: "Emotional", desc: "Stress, panic, anger, sadness, arguments, or loneliness — keep these for later, and replace with coping actions." },
   };
 
   function triggerGroup(triggerId) {
@@ -178,13 +178,24 @@
     ],
   };
 
-  const NON_SHAMING_MESSAGES = [
-    "Logged. This is data, not failure.",
-    "Slip does not restart your progress.",
-    "Notice the trigger and continue.",
-  ];
-  function nonShamingMessage() {
-    return NON_SHAMING_MESSAGES[Math.floor(Math.random() * NON_SHAMING_MESSAGES.length)];
+  const NON_SHAMING_MESSAGES = {
+    smoked: [
+      "Logged. This is data, not failure.",
+      "A slip does not restart your progress.",
+      "Notice the trigger and continue.",
+    ],
+    resisted: [
+      "Notice the trigger and continue.",
+      "Logged. This is data, not failure.",
+    ],
+    delayed: [
+      "You delayed it — that still counts as progress.",
+      "Notice the trigger and continue.",
+    ],
+  };
+  function nonShamingMessage(outcome) {
+    const pool = NON_SHAMING_MESSAGES[outcome] || NON_SHAMING_MESSAGES.smoked;
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
   const DELAY_OPTIONS = [
@@ -192,6 +203,12 @@
     { value: 5, label: "Delayed 5 min" },
     { value: 10, label: "Delayed 10 min" },
     { value: 20, label: "Delayed 20 min" },
+  ];
+
+  const DELAY_LENGTHS = [
+    { value: 5, label: "5 min" },
+    { value: 10, label: "10 min" },
+    { value: 20, label: "20 min" },
   ];
 
   function makeLogId() {
@@ -212,11 +229,21 @@
     });
   }
 
+  function isDelayedOutcome(l) {
+    return l.outcome === "delayed" || (l.outcome == null && !l.smoked && typeof l.delayMinutes === "number" && l.delayMinutes > 0);
+  }
+
   function computeWeeklyAnalytics(logs) {
     const week = last7DaysLogs(logs);
     const prevWeek = prevWeekLogs(logs);
     const smoked = week.filter((l) => l.smoked && l.trigger);
     const resisted = week.filter((l) => !l.smoked);
+    const delayed = week.filter(isDelayedOutcome);
+
+    const intensityValues = week.filter((l) => typeof l.intensity === "number").map((l) => l.intensity);
+    const avgIntensity = intensityValues.length
+      ? intensityValues.reduce((sum, n) => sum + n, 0) / intensityValues.length
+      : null;
 
     const triggerCounts = {};
     const triggerIntensitySum = {};
@@ -284,6 +311,8 @@
     return {
       totalSmoked: smoked.length,
       totalResisted: resisted.length,
+      totalDelayed: delayed.length,
+      avgIntensity,
       mostCommonTrigger,
       strongestTrigger,
       strongestAvg: strongestTrigger ? strongestAvg : null,
@@ -345,15 +374,20 @@
     ).join("")}</div>`;
   }
 
-  /* draft holds in-progress answers across the modal steps */
+  /* draft holds in-progress answers across the modal steps. kind: 'smoked' | 'resisted' | 'delayed' */
   function openQuickLog(kind) {
-    // kind: 'smoked' | 'resisted'
-    const draft = { kind, trigger: null, intensity: null, delayMinutes: kind === "resisted" ? null : 0, note: "" };
+    const draft = { kind, trigger: null, intensity: null, delayMinutes: kind === "resisted" ? null : 0, smokedAfterDelay: null, note: "" };
     renderQuickLogStep(draft, "trigger");
   }
 
+  const QUICK_LOG_TITLES = {
+    smoked: "You smoked one",
+    resisted: "You resisted a craving",
+    delayed: "You delayed a craving",
+  };
+
   function renderQuickLogStep(draft, step) {
-    const title = draft.kind === "smoked" ? "You smoked one" : "You resisted a craving";
+    const title = QUICK_LOG_TITLES[draft.kind] || "Log this";
     let body = "";
 
     if (step === "trigger") {
@@ -374,6 +408,19 @@
       body = `
         <p class="lead">Did you delay at all before smoking?</p>
         ${chipGrid(DELAY_OPTIONS.map((d) => ({ value: d.value, label: d.label })), "delay")}
+      `;
+    } else if (step === "delayLength") {
+      body = `
+        <p class="lead">How long did you delay it?</p>
+        ${chipGrid(DELAY_LENGTHS.map((d) => ({ value: d.value, label: d.label })), "delay")}
+      `;
+    } else if (step === "smokedAfter") {
+      body = `
+        <p class="lead">Did you end up smoking after delaying?</p>
+        <div class="row">
+          <button class="btn ghost" id="smokedAfterYes">Yes</button>
+          <button class="btn primary" id="smokedAfterNo">No — it worked</button>
+        </div>
       `;
     } else if (step === "note") {
       body = `
@@ -416,6 +463,8 @@
           draft.intensity = Number(btn.dataset.intensity);
           if (draft.kind === "smoked") {
             renderQuickLogStep(draft, "delay");
+          } else if (draft.kind === "delayed") {
+            renderQuickLogStep(draft, "delayLength");
           } else {
             renderQuickLogStep(draft, "note");
           }
@@ -428,6 +477,22 @@
           renderQuickLogStep(draft, "note");
         });
       });
+    } else if (step === "delayLength") {
+      modalRoot.querySelectorAll("[data-delay]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          draft.delayMinutes = Number(btn.dataset.delay);
+          renderQuickLogStep(draft, "smokedAfter");
+        });
+      });
+    } else if (step === "smokedAfter") {
+      document.getElementById("smokedAfterYes").addEventListener("click", () => {
+        draft.smokedAfterDelay = true;
+        renderQuickLogStep(draft, "note");
+      });
+      document.getElementById("smokedAfterNo").addEventListener("click", () => {
+        draft.smokedAfterDelay = false;
+        renderQuickLogStep(draft, "note");
+      });
     } else if (step === "note") {
       document.getElementById("skipNoteBtn").addEventListener("click", () => finishQuickLog(draft, ""));
       document.getElementById("saveNoteBtn").addEventListener("click", () => {
@@ -437,14 +502,16 @@
   }
 
   function finishQuickLog(draft, note) {
+    const smoked = draft.kind === "smoked" ? true : draft.kind === "delayed" ? !!draft.smokedAfterDelay : false;
     const entry = {
       id: makeLogId(),
       date: new Date().toISOString(),
-      type: draft.kind === "smoked" ? "cigarette" : "resisted",
-      smoked: draft.kind === "smoked",
+      type: smoked ? "cigarette" : "resisted",
+      outcome: draft.kind,
+      smoked,
       trigger: draft.trigger,
       intensity: draft.intensity,
-      delayMinutes: draft.kind === "smoked" ? draft.delayMinutes : null,
+      delayMinutes: draft.kind === "resisted" ? null : draft.delayMinutes,
       note: note || "",
     };
     state.logs.push(entry);
@@ -456,7 +523,7 @@
 
   function showPostLogMessage(entry) {
     const group = entry.trigger ? triggerGroup(entry.trigger) : null;
-    let message = entry.smoked ? nonShamingMessage() : "Nice — that craving didn't win this time.";
+    const message = nonShamingMessage(entry.outcome || (entry.smoked ? "smoked" : "resisted"));
     let suggestion = "";
     if (group && COPING_SUGGESTIONS[group]) {
       const tip = COPING_SUGGESTIONS[group][Math.floor(Math.random() * COPING_SUGGESTIONS[group].length)];
@@ -584,6 +651,7 @@
       id: makeLogId(),
       date: new Date().toISOString(),
       type: draft.stillSmoked ? "cigarette" : "resisted",
+      outcome: "delayed",
       smoked: draft.stillSmoked,
       trigger: draft.trigger,
       intensity: draft.intensity,
@@ -801,7 +869,8 @@
             <button class="btn primary" id="logCigarette">I smoked one 🚬</button>
             <button class="btn ghost" id="logCraving">I had a craving — resisted 💪</button>
           </div>
-          <button class="btn ghost delay-btn" id="startDelayBtn">⏳ Delay 10 minutes</button>
+          <button class="btn ghost delay-btn" id="logDelayed">⏳ I delayed a craving</button>
+          <button class="btn ghost delay-btn" id="startDelayBtn">▶ Start a 10-min delay timer</button>
           <div class="log-list" id="recentLogs"></div>
         </div>
 
@@ -853,7 +922,8 @@
             <button class="btn primary" id="logCraving">I had a craving — resisted 💪</button>
             <button class="btn ghost" id="logCigarette">I smoked one</button>
           </div>
-          <button class="btn ghost delay-btn" id="startDelayBtn">⏳ Delay 10 minutes</button>
+          <button class="btn ghost delay-btn" id="logDelayed">⏳ I delayed a craving</button>
+          <button class="btn ghost delay-btn" id="startDelayBtn">▶ Start a 10-min delay timer</button>
           <div class="log-list" id="recentLogs"></div>
         </div>
 
@@ -887,8 +957,10 @@
 
     const cravingBtn = document.getElementById("logCraving");
     const cigaretteBtn = document.getElementById("logCigarette");
+    const delayedBtn = document.getElementById("logDelayed");
     if (cravingBtn) cravingBtn.addEventListener("click", () => openQuickLog("resisted"));
     if (cigaretteBtn) cigaretteBtn.addEventListener("click", () => openQuickLog("smoked"));
+    if (delayedBtn) delayedBtn.addEventListener("click", () => openQuickLog("delayed"));
 
     const startDelayBtn = document.getElementById("startDelayBtn");
     if (startDelayBtn) startDelayBtn.addEventListener("click", () => startUrgeDelay(10));
@@ -945,6 +1017,8 @@
           <div class="insight"><div class="insight-value">${a.mostCommonTrigger ? TRIGGER_BY_ID[a.mostCommonTrigger].label : "—"}</div><div class="insight-label">Most common trigger</div></div>
           <div class="insight"><div class="insight-value">${a.strongestTrigger ? TRIGGER_BY_ID[a.strongestTrigger].label : "—"}</div><div class="insight-label">Strongest craving trigger</div></div>
           <div class="insight"><div class="insight-value">${a.totalResisted}</div><div class="insight-label">Cravings resisted</div></div>
+          <div class="insight"><div class="insight-value">${a.totalDelayed}</div><div class="insight-label">Cravings delayed</div></div>
+          <div class="insight"><div class="insight-value">${a.avgIntensity !== null ? a.avgIntensity.toFixed(1) + "/10" : "—"}</div><div class="insight-label">Average craving intensity</div></div>
           <div class="insight"><div class="insight-value">${a.avgDelay !== null ? Math.round(a.avgDelay) + " min" : "—"}</div><div class="insight-label">Avg. delay before smoking</div></div>
           <div class="insight"><div class="insight-value">${a.automaticReduced !== null ? a.automaticReduced : "—"}</div><div class="insight-label">Automatic cigs reduced vs last week</div></div>
           <div class="insight"><div class="insight-value">${a.bestWindow ? a.bestWindow.label : "—"}</div><div class="insight-label">Best smoke-free window</div></div>
