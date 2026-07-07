@@ -1,0 +1,10 @@
+{
+  "name": "QuitPath",
+  "short_name": "QuitPath",
+  "description": "A free, personal quit-smoking plan for cigarette and hand-rolling smokers.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#14100a",
+  "theme_color": "#d9720c",
+  "icons": []
+}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>QuitPath — Your Personal Quit Smoking Plan</title>
+<meta name="description" content="A free, personal quit-smoking plan for cigarette and hand-rolling smokers.">
+<meta name="theme-color" content="#d9720c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <header class="topbar">
+    <div class="brand">🌱 <span>QuitPath</span></div>
+    <nav class="topnav">
+      <button class="nav-btn" data-view="dashboard" id="navDashboard">Dashboard</button>
+      <button class="nav-btn" data-view="info" id="navInfo">Learn</button>
+      <button class="nav-btn" data-view="settings" id="navSettings">Settings</button>
+    </nav>
+  </header>
+
+  <main id="main">
+
+    <!-- ONBOARDING -->
+    <section id="view-onboarding" class="view">
+      <div class="card wizard" id="wizard">
+
+        <div class="step" data-step="0">
+          <h1>Let's build your quit plan</h1>
+          <p class="lead">A couple of quick questions and we'll create a plan tailored to you — whether you smoke manufactured cigarettes or roll your own.</p>
+          <button class="btn primary" data-next>Get started</button>
+        </div>
+
+        <div class="step" data-step="1" hidden>
+          <h2>What do you smoke?</h2>
+          <p class="lead">This changes how we calculate your intake, cost, and plan.</p>
+          <div class="choice-grid">
+            <button class="choice-card" data-type="cigarette">
+              <span class="choice-emoji">🚬</span>
+              <span class="choice-title">Manufactured cigarettes</span>
+              <span class="choice-sub">Packs, cartons, tailor-mades</span>
+            </button>
+            <button class="choice-card" data-type="handrolled">
+              <span class="choice-emoji">🎋</span>
+              <span class="choice-title">Hand-rolled (roll-your-own)</span>
+              <span class="choice-sub">Loose tobacco, papers, filters</span>
+            </button>
+          </div>
+          <button class="btn ghost" data-back>Back</button>
+        </div>
+
+        <!-- Cigarette details -->
+        <div class="step" data-step="2-cigarette" hidden>
+          <h2>Your cigarette habit</h2>
+          <label class="field">
+            <span>Cigarettes per day</span>
+            <input type="number" id="cigPerDay" min="1" max="100" value="15" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>Cigarettes per pack</span>
+            <input type="number" id="cigPerPack" min="1" max="50" value="20" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>Cost per pack</span>
+            <input type="number" id="cigPackCost" min="0" step="0.01" value="12.00" inputmode="decimal">
+          </label>
+          <div class="row">
+            <button class="btn ghost" data-back>Back</button>
+            <button class="btn primary" data-next>Next</button>
+          </div>
+        </div>
+
+        <!-- Hand-rolled details -->
+        <div class="step" data-step="2-handrolled" hidden>
+          <h2>Your hand-rolling habit</h2>
+          <label class="field">
+            <span>Roll-ups per day</span>
+            <input type="number" id="hrPerDay" min="1" max="100" value="15" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>Grams of tobacco per roll-up</span>
+            <input type="number" id="hrGramsPerCig" min="0.1" step="0.1" value="0.7" inputmode="decimal">
+          </label>
+          <label class="field">
+            <span>Pouch size (grams)</span>
+            <input type="number" id="hrPouchSize" min="1" step="1" value="30" inputmode="numeric">
+          </label>
+          <label class="field">
+            <span>Cost per pouch</span>
+            <input type="number" id="hrPouchCost" min="0" step="0.01" value="18.00" inputmode="decimal">
+          </label>
+          <div class="row">
+            <button class="btn ghost" data-back>Back</button>
+            <button class="btn primary" data-next>Next</button>
+          </div>
+        </div>
+
+        <div class="step" data-step="3" hidden>
+          <h2>How long have you smoked?</h2>
+          <p class="lead">Used to personalize your health-recovery timeline. Optional.</p>
+          <label class="field">
+            <span>Years smoking</span>
+            <input type="number" id="yearsSmoking" min="0" max="80" value="10" inputmode="numeric">
+          </label>
+          <div class="row">
+            <button class="btn ghost" data-back>Back</button>
+            <button class="btn primary" data-next>Next</button>
+          </div>
+        </div>
+
+        <div class="step" data-step="4" hidden>
+          <h2>When do you want to quit?</h2>
+          <p class="lead">Quitting today starts a cold-turkey plan. Picking a future date builds you a gradual step-down plan that reaches zero by then.</p>
+          <div class="choice-grid two">
+            <button class="choice-card" data-quitmode="today">
+              <span class="choice-emoji">⚡</span>
+              <span class="choice-title">Today</span>
+              <span class="choice-sub">Cold turkey, starting now</span>
+            </button>
+            <button class="choice-card" data-quitmode="future">
+              <span class="choice-emoji">📅</span>
+              <span class="choice-title">Pick a date</span>
+              <span class="choice-sub">Gradual reduction plan</span>
+            </button>
+          </div>
+          <label class="field" id="quitDateField" hidden>
+            <span>Quit date</span>
+            <input type="date" id="quitDateInput">
+          </label>
+          <div class="row">
+            <button class="btn ghost" data-back>Back</button>
+            <button class="btn primary" id="finishOnboarding" hidden>Create my plan</button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="view-dashboard" class="view" hidden>
+      <div id="dashboardContent"></div>
+    </section>
+
+    <!-- INFO / LEARN -->
+    <section id="view-info" class="view" hidden>
+      <div class="card">
+        <h1>Extra info &amp; support</h1>
+
+        <div class="info-block">
+          <h2>Withdrawal timeline</h2>
+          <ul class="timeline-list">
+            <li><strong>20 minutes:</strong> Heart rate and blood pressure start to drop.</li>
+            <li><strong>Day 1:</strong> Carbon monoxide clears from your blood; oxygen levels normalize.</li>
+            <li><strong>Day 2–3:</strong> Nicotine is fully out of your body. Cravings and irritability usually peak here.</li>
+            <li><strong>Week 1–2:</strong> Coughing may increase temporarily as lungs clear out mucus — this is a good sign.</li>
+            <li><strong>Week 2–4:</strong> Circulation and lung function keep improving; cravings become shorter and less frequent.</li>
+            <li><strong>1–3 months:</strong> Energy and stamina noticeably better.</li>
+            <li><strong>9 months+:</strong> Coughing, congestion, and shortness of breath continue to decrease.</li>
+          </ul>
+        </div>
+
+        <div class="info-block">
+          <h2>Handling a craving — the 4 Ds</h2>
+          <ul>
+            <li><strong>Delay</strong> — cravings usually pass in 3–5 minutes. Wait it out.</li>
+            <li><strong>Deep breathe</strong> — slow breathing calms the urge and mimics the inhale ritual.</li>
+            <li><strong>Drink water</strong> — sip slowly, it gives your hands and mouth something to do.</li>
+            <li><strong>Do something else</strong> — walk, text a friend, chew gum — break the association.</li>
+          </ul>
+        </div>
+
+        <div class="info-block">
+          <h2>Hand-rolled vs. manufactured cigarettes</h2>
+          <p>If you roll your own, a few things are worth knowing:</p>
+          <ul>
+            <li>Roll-your-own cigarettes are often smoked without an effective filter, so tar and smoke exposure per cigarette can be as high or higher than filtered manufactured cigarettes.</li>
+            <li>People tend to underestimate how much tobacco they use per roll-up, which can understate real nicotine intake.</li>
+            <li>Because RYO is usually cheaper per gram, the financial savings from quitting build up more slowly than the "per pack" savings a cigarette smoker sees — the health benefits, however, are identical.</li>
+            <li>Nicotine replacement (patches, gum, lozenges) works the same regardless of how you smoked, and is worth considering for either group.</li>
+          </ul>
+        </div>
+
+        <div class="info-block">
+          <h2>If you slip</h2>
+          <p>A slip is not a restart. Log it, note what triggered it, and get back to your plan the next hour — not "tomorrow." Most people who successfully quit had at least one slip along the way.</p>
+        </div>
+
+        <div class="info-block">
+          <h2>Free support</h2>
+          <p>Consider a quitline or app-based coach for extra accountability — talking to someone in the first two weeks meaningfully improves your odds of staying quit.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-settings" class="view" hidden>
+      <div class="card">
+        <h1>Daily reminder</h1>
+        <p class="lead">Get a notification once a day with your progress and a motivational quote. Notifications only fire while this app is open in a browser tab (there's no server behind this app to push them when it's fully closed).</p>
+        <label class="field">
+          <span>Reminder time</span>
+          <input type="time" id="reminderTime" value="09:00">
+        </label>
+        <div class="row" style="margin-bottom:16px">
+          <button class="btn primary" id="enableReminderBtn">Enable reminder</button>
+          <button class="btn ghost" id="disableReminderBtn">Turn off</button>
+        </div>
+        <p class="lead" id="reminderStatus"></p>
+      </div>
+      <div class="card">
+        <h1>Settings</h1>
+        <p class="lead">Your data is stored only on this device — nothing is uploaded anywhere.</p>
+        <button class="btn ghost" id="editProfileBtn">Edit my habit details</button>
+        <button class="btn danger" id="resetBtn">Reset all data &amp; start over</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
