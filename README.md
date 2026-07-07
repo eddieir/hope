@@ -41,6 +41,24 @@ Most quit-smoking apps assume you smoke manufactured cigarettes out of a pack, a
 
 There's also a one-tap "I had a craving — resisted" button, because celebrating the moments you *didn't* smoke is at least as important as logging the ones you did.
 
+**Trigger tracking**  Not all cigarettes are the same, and treating a stress cigarette the same as a "smoked one out of habit while making coffee" cigarette makes for a worse plan. So both "I smoked one" and "I had a craving" open a fast, chip-based flow instead of a form:
+
+1. Tap what's going on (14 chips: stress, anxiety/panic, anger, sadness, after argument, boredom, habit/automatic, morning/waking, after meal, coffee/tea, alcohol/social, work break, before sleep, other).
+2. Tap how strong the urge is, 1–10.
+3. If you smoked, tap how long you delayed first (immediate / 5 / 10 / 20 min).
+4. Optional one-line note, or skip it.
+
+Each tap auto-advances to the next step, so the whole thing takes a few seconds, on purpose, because a stressed person mid-craving isn't going to fill out a form. Every trigger belongs to one of three groups that drive the rest of the plan:
+- **Automatic** (habit, boredom, morning) — low-awareness, usually the easiest to cut first.
+- **Ritual** (meal, coffee, work break, before sleep, alcohol) — tied to a routine, cut once automatic ones are down.
+- **Emotional** (stress, anxiety, anger, sadness, argument) — kept for later stages and paired with coping suggestions instead of just "don't."
+
+After you save a log, the app shows one of a small set of non-shaming lines ("Logged. This is data, not failure." / "Slip does not restart your progress." / "Notice the trigger and continue.") plus a trigger-specific coping suggestion to try next time, never "you failed" or "start over" language.
+
+**Urge delay**  A "⏳ Delay 10 minutes" button starts a countdown banner (it survives a page reload). While it's running you can end it early with "Craving passed 🎉" or "I smoked anyway." When it ends, one way or another, the app asks whether the craving reduced and what helped (chips pulled from the same trigger-specific coping list), then logs the outcome.
+
+**Weekly trigger insights**  Once there's a week of logged data, a "Your week in triggers" card appears on the dashboard with: most common trigger, strongest craving trigger (highest average intensity), cravings resisted, average delay before smoking, automatic cigarettes reduced vs. the previous week, your best smoke-free time-of-day window, a "top triggers this week" bar breakdown, and a stacked automatic/ritual/emotional progress bar. The taper/status card also gets a "Focus next" note recommending which group to target based on plan stage and what you've actually logged (automatic first, then ritual, emotional last, replaced with coping actions rather than sudden cold turkey).
+
 **Health milestones**  A standard, medically-sourced timeline (20 minutes → heart rate drops, 12 hours → CO clears, all the way out to 15 years → heart disease risk normalizes) that lights up progressively based on real elapsed time since your quit date.
 
 **Motivational quotes**  One per day (deterministic, so it doesn't change if you reload), with a "new quote" button if you want a different one on demand. Short, non-cheesy, and there's a decent-sized pool so it doesn't repeat every week.
@@ -56,9 +74,12 @@ There's also a one-tap "I had a craving — resisted" button, because celebratin
 Plain HTML, CSS, and vanilla JS. No framework, no bundler, no `node_modules`. That's not a purity thing,it's that a form wizard, some date math, and localStorage reads/writes genuinely don't need React. If this app grows a backend or real accounts later, that's a different conversation. Right now, the entire app is a handful of files you can read top to bottom in fifteen minutes:
 
 ```
-index.html    — all views (onboarding wizard, dashboard, learn, settings), hidden/shown via [hidden]
-style.css     — CSS custom properties for theming, dark mode via prefers-color-scheme
-app.js        — all logic: state, date math, rendering, event wiring
+index.html    — all views (onboarding wizard, dashboard, learn, settings) plus an empty #modalRoot
+                for the quick-log/urge-delay overlays, hidden/shown via [hidden]
+style.css     — CSS custom properties for theming, dark mode via prefers-color-scheme,
+                plus a validated categorical palette (--series-1..6) for trigger charts
+app.js        — all logic: state, date math, trigger/coping data, quick-log modal,
+                urge-delay timer, weekly analytics, rendering, event wiring
 sw.js         — service worker: offline asset caching + notification click handling
 manifest.json — PWA manifest so it's installable on a phone home screen
 netlify.toml  — static publish config + security headers
@@ -69,9 +90,11 @@ Everything renders by rebuilding an HTML string and setting `.innerHTML` on a co
 ### A couple of implementation details worth knowing about
 
 - **Dates are handled in local time on purpose.** An early version used `toISOString().slice(0, 10)` to get "today," which quietly breaks near midnight in any timezone ahead of UTC — you'd get tomorrow's date labeled as today. Everything date-related now goes through `toLocalDateStr()`, which reads local `getFullYear/getMonth/getDate` instead of trusting `toISOString`. If you're adding new date logic, use that helper,don't reach for `toISOString()` for anything that needs to match what the user sees on their calendar.
-- **Cigarette logs are timestamped events, not counters.** Each log entry has a timestamp and a type (`cigarette` or `resisted`, with `slip` kept around for backward compatibility with earlier data). The current-day tally, the "since quit date" total, and the recent-activity list are all just filters over that one array. This is slightly more data than a running counter, but it means the "cigarettes avoided" stat can be *recomputed* correctly from logs instead of trusting a total that could drift out of sync with reality.
+- **Cigarette logs are timestamped events, not counters.** Each log entry has a timestamp and a type (`cigarette` or `resisted`, with `slip` kept around for backward compatibility with earlier data), plus optional `trigger`, `intensity` (1–10), `delayMinutes`, and `note` fields. The current-day tally, the "since quit date" total, the recent-activity list, and the weekly trigger analytics are all just filters/aggregations over that one array. Older logs saved before trigger tracking existed simply have those fields `undefined` and are skipped by the trigger analytics, everything else about them still works.
+- **Trigger data lives in three places in `app.js`**: `TRIGGERS` (the 14 chip options and which group each belongs to), `COPING_SUGGESTIONS` (per-group replacement actions), and `GROUP_INFO` (label + description per group, used for the "Focus next" card). `triggerGroup()` is the one function that maps a trigger id to its group, if you add a trigger category, that's the only place you need to register it.
+- **The urge-delay timer is persisted, not just in-memory.** `state.activeDelay` stores a `startedAt` timestamp, so a countdown survives a page reload or the tab being backgrounded, actual elapsed time is always recomputed from `Date.now()` rather than trusting a running `setInterval` tick count.
 - **The service worker caches app shell assets for offline use**, and its `CACHE_NAME` is versioned. Bump it whenever you ship a change to `app.js`, `style.css`, or `index.html` — otherwise returning users can get served stale assets out of the cache instead of your update. This bit me during development: I shipped a color palette change and the old theme kept showing up until I bumped the cache name and force-cleared it.
-- **The color palette is one block of CSS custom properties** at the top of `style.css` (`--primary`, `--success`, `--danger`, background/text/border tokens, both light and dark variants). If you want to reskin this, that's the only place you need to touch,nothing else hardcodes a color.
+- **The color palette is one block of CSS custom properties** at the top of `style.css` (`--primary`, `--success`, `--danger`, background/text/border tokens, both light and dark variants, plus `--series-1` through `--series-6` for the trigger/cigarette-type charts). The series colors were run through a colorblind-safety and contrast validator before picking them, if you add more chart categories, re-validate rather than eyeballing a new hue. If you want to reskin this, that block is the only place you need to touch, nothing else hardcodes a color.
 
 ## Running it locally
 
@@ -100,6 +123,8 @@ This repo is also connected to Netlify via GitHub (`eddieir/hope` → auto-deplo
 - **Reminders don't survive a closed tab.** See above — real background push needs a server.
 - **No accessibility audit has been done beyond basic semantic HTML.** It should mostly work with a screen reader (real `<label>`s, real `<button>`s), but nobody's gone through it with NVDA/VoiceOver line by line yet.
 - **The taper schedule is a straight linear reduction.** Real quitting is rarely linear. It's a reasonable default, not a clinically validated tapering protocol, if you want a more forgiving curve (e.g. front-loaded or stepped), that's a `buildTaperSchedule()` change in `app.js` and nothing else.
+- **Weekly trigger insights need a week of logging to be meaningful.** The analytics card only appears once you've logged at least one cigarette or resisted craving with a trigger attached, and stats like "automatic cigs reduced" compare against the *previous* 7 days, so they show `—` until there's two weeks of history to compare.
+- **The "Focus next" recommendation is a heuristic, not a coaching algorithm.** It looks at plan stage (taper progress or post-quit) and which trigger groups you've actually logged, and suggests automatic → ritual → emotional in that order. It doesn't adapt to anything more sophisticated than that, and it never blocks or gates behaviour, it's a suggestion, not a rule.
 
 ## If you're picking this up cold
 
