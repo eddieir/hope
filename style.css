@@ -13,6 +13,8 @@
   --border: #ecdfc7;
   --danger: #b91c1c;
   --danger-light: #fde6e0;
+  --crisis: #c0246b;
+  --crisis-light: #fce4ef;
   --shadow: 0 1px 3px rgba(36, 26, 15, 0.08), 0 8px 24px rgba(36, 26, 15, 0.06);
   --radius: 16px;
 
@@ -33,6 +35,7 @@
     --text-muted: #bda887;
     --border: #362a1a;
     --danger-light: #3a1414;
+    --crisis-light: #3a1428;
     --shadow: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.3);
 
     --series-1: #3987e5;
@@ -365,7 +368,7 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
 .crisis-btn {
   display: block;
   width: 100%;
-  background: var(--danger);
+  background: var(--crisis);
   color: #fff;
   font-size: 1.05rem;
   padding: 16px 20px;
@@ -381,11 +384,15 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
   text-align: center;
 }
 .crisis-eyebrow {
+  display: inline-block;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 0.75rem;
-  color: var(--text-muted);
-  margin: 0 0 8px;
+  color: var(--crisis);
+  background: var(--crisis-light);
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin: 0 auto 12px;
 }
 .crisis-tip { font-size: 1.6rem; margin: 0 0 12px; }
 .crisis-action { width: 100%; margin: 12px 0; padding: 16px; font-size: 1.05rem; }
