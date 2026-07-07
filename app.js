@@ -130,16 +130,16 @@
     { id: "anxiety", label: "Anxiety / Panic", emoji: "😰", group: "emotional" },
     { id: "anger", label: "Anger", emoji: "😠", group: "emotional" },
     { id: "sadness", label: "Sadness", emoji: "😢", group: "emotional" },
+    { id: "argument", label: "After argument", emoji: "💥", group: "emotional" },
+    { id: "loneliness", label: "Loneliness", emoji: "😔", group: "emotional" },
     { id: "boredom", label: "Boredom", emoji: "🥱", group: "automatic" },
     { id: "meal", label: "After meal", emoji: "🍽️", group: "ritual" },
     { id: "coffee", label: "Coffee / tea", emoji: "☕", group: "ritual" },
     { id: "workbreak", label: "Work break", emoji: "💼", group: "ritual" },
     { id: "alcohol", label: "Social / alcohol", emoji: "🍻", group: "ritual" },
-    { id: "argument", label: "After argument", emoji: "💥", group: "emotional" },
     { id: "waking", label: "Morning / after waking", emoji: "🌅", group: "ritual" },
     { id: "sleep", label: "Before sleep", emoji: "🌙", group: "ritual" },
     { id: "habit", label: "Habit / automatic", emoji: "🔁", group: "automatic" },
-    { id: "loneliness", label: "Loneliness", emoji: "🥀", group: "emotional" },
     { id: "other", label: "Other", emoji: "❓", group: "other" },
   ];
   const TRIGGER_BY_ID = Object.fromEntries(TRIGGERS.map((t) => [t.id, t]));
