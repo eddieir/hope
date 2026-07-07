@@ -117,28 +117,39 @@
     return idx;
   }
 
-  function scheduleChartHtml(schedule, todayDateStr) {
+  function scheduleChartHtml(schedule, todayDateStr, smokedCounts) {
     const n = schedule.length;
-    const maxTarget = Math.max(...schedule.map((s) => s.target), 1);
+    const maxScale = Math.max(...schedule.map((s) => s.target), ...Object.values(smokedCounts), 1);
     const todayIdx = schedule.findIndex((s) => s.date === todayDateStr);
     const labelIdx = scheduleLabelIndices(schedule, todayIdx);
     const trackPx = 100;
 
     const firstTarget = schedule[0].target;
     const lastTarget = schedule[n - 1].target;
-    const ariaLabel = `Target cigarettes per day, stepping down from ${firstTarget} to ${lastTarget} over ${n} day${n === 1 ? "" : "s"}.`;
+    const totalSmoked = Object.values(smokedCounts).reduce((sum, c) => sum + c, 0);
+    const ariaLabel = `Target cigarettes per day, stepping down from ${firstTarget} to ${lastTarget} over ${n} day${n === 1 ? "" : "s"}. ${totalSmoked} smoked and logged so far.`;
 
     const bars = schedule.map((s, i) => {
       const isToday = s.date === todayDateStr;
       const isPast = s.date < todayDateStr;
-      const barPx = Math.max(3, Math.round((s.target / maxTarget) * trackPx));
+      const hasActual = isPast || isToday;
+      const smoked = smokedCounts[s.date] || 0;
+      const targetPx = Math.max(3, Math.round((s.target / maxScale) * trackPx));
+      const smokedPx = smoked > 0 ? Math.max(3, Math.round((smoked / maxScale) * trackPx)) : 0;
       const label = labelIdx.has(i) ? shortDateLabel(s.date) : "";
+      const summary = hasActual
+        ? `${s.date}: target ${s.target}, smoked ${smoked}`
+        : `${s.date}: target ${s.target}`;
       return `
         <div class="chart-col">
-          <button type="button" class="chart-bar-btn ${isToday ? "today" : ""} ${isPast ? "past" : ""}" data-bar-index="${i}" aria-label="${s.date}: ${s.target} cigarette${s.target === 1 ? "" : "s"}">
-            <span class="chart-bar-value">${s.target}</span>
+          <button type="button" class="chart-bar-btn ${isToday ? "today" : ""} ${isPast ? "past" : ""}" data-bar-index="${i}" aria-label="${summary}">
+            <span class="chart-bar-value">
+              <span class="chart-bar-value-line">${s.target} target</span>
+              ${hasActual ? `<span class="chart-bar-value-line smoked">${smoked} smoked</span>` : ""}
+            </span>
             <span class="chart-track" style="height:${trackPx}px">
-              <span class="chart-bar" style="height:${barPx}px"></span>
+              <span class="chart-bar chart-bar-target" style="height:${targetPx}px"></span>
+              ${hasActual ? `<span class="chart-bar chart-bar-smoked" style="height:${smokedPx}px"></span>` : ""}
             </span>
           </button>
           <span class="chart-x-label">${label}</span>
@@ -152,17 +163,23 @@
           ${bars}
         </div>
       </div>
+      <div class="chart-legend">
+        <span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-target"></span>Target</span>
+        <span class="chart-legend-item"><span class="chart-legend-swatch chart-legend-smoked"></span>Smoked</span>
+      </div>
     `;
   }
 
-  function scheduleTableHtml(schedule, todayDateStr) {
+  function scheduleTableHtml(schedule, todayDateStr, smokedCounts) {
     return `
       <table class="taper-table">
-        <thead><tr><th>Date</th><th>Target / day</th></tr></thead>
+        <thead><tr><th>Date</th><th>Target / day</th><th>Smoked</th></tr></thead>
         <tbody>
           ${schedule.map((s) => {
             const rowClass = s.date === todayDateStr ? "today-row" : (s.date < todayDateStr ? "past-row" : "");
-            return `<tr class="${rowClass}"><td>${s.date}</td><td>${s.target}</td></tr>`;
+            const hasActual = s.date <= todayDateStr;
+            const smoked = smokedCounts[s.date] || 0;
+            return `<tr class="${rowClass}"><td>${s.date}</td><td>${s.target}</td><td>${hasActual ? smoked : "—"}</td></tr>`;
           }).join("")}
         </tbody>
       </table>
@@ -337,6 +354,20 @@
 
   function makeLogId() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function isCigLog(l) {
+    return l.type === "cigarette" || l.type === "slip";
+  }
+
+  function dailySmokedCounts(logs) {
+    const counts = {};
+    logs.forEach((l) => {
+      if (!isCigLog(l)) return;
+      const d = toLocalDateStr(new Date(l.date));
+      counts[d] = (counts[d] || 0) + 1;
+    });
+    return counts;
   }
 
   function last7DaysLogs(logs) {
@@ -1006,10 +1037,10 @@
     const daysSinceQuit = Math.max(daysBetween(quitDate, today), 0);
     const hoursSinceQuit = isTapering ? 0 : daysSinceQuit * 24 + (new Date().getHours());
 
-    const isCigLog = (l) => l.type === "cigarette" || l.type === "slip";
     const cigsLoggedToday = logs.filter((l) => isCigLog(l) && toLocalDateStr(new Date(l.date)) === today).length;
     const quitDateStart = new Date(quitDate + "T00:00:00");
     const cigsLoggedSinceQuit = logs.filter((l) => isCigLog(l) && new Date(l.date) >= quitDateStart).length;
+    const smokedCounts = dailySmokedCounts(logs);
 
     const analytics = computeWeeklyAnalytics(logs);
     const focusGroup = recommendedFocusGroup(state);
@@ -1072,7 +1103,7 @@
             <button class="btn ghost schedule-view-toggle" id="scheduleViewToggle">${scheduleViewMode === "chart" ? "View as table" : "View as chart"}</button>
           </div>
           <p class="lead">Tap a bar to see that day's exact number.</p>
-          ${scheduleViewMode === "chart" ? scheduleChartHtml(state.schedule, today) : scheduleTableHtml(state.schedule, today)}
+          ${scheduleViewMode === "chart" ? scheduleChartHtml(state.schedule, today, smokedCounts) : scheduleTableHtml(state.schedule, today, smokedCounts)}
         </div>
       `;
     } else {

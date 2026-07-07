@@ -322,44 +322,63 @@ h2 { font-size: 1.15rem; margin: 0 0 8px; }
   flex-direction: column;
   align-items: center;
   position: relative;
-  width: 20px;
+  width: 34px;
 }
 .chart-bar-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; border-radius: 4px; }
 
-.chart-track { position: relative; width: 14px; display: block; }
+.chart-track {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  z-index: 1;
+}
 .chart-bar {
   display: block;
-  width: 100%;
+  width: 11px;
   border-radius: 4px 4px 0 0;
   background: var(--border);
-  position: absolute;
-  bottom: 0;
-  left: 0;
 }
-.chart-bar-btn.past .chart-bar { background: var(--text-muted); opacity: 0.5; }
-.chart-bar-btn.today .chart-bar { background: var(--primary); }
+.chart-bar-target { background: var(--border); }
+.chart-bar-btn.past .chart-bar-target { background: var(--text-muted); opacity: 0.6; }
+.chart-bar-btn.today .chart-bar-target { background: var(--primary); }
+.chart-bar-smoked { background: var(--danger); }
 
 .chart-bar-value {
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 0.7rem;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--primary);
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 1px 6px;
+  padding: 2px 6px;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.1s ease;
 }
+.chart-bar-value-line.smoked { color: var(--danger); }
 .chart-bar-btn.today .chart-bar-value,
 .chart-bar-btn.show-value .chart-bar-value { opacity: 1; }
 
 .chart-x-label { font-size: 0.65rem; color: var(--text-muted); margin-top: 6px; white-space: nowrap; }
+
+.chart-legend { display: flex; gap: 16px; margin-top: 4px; padding: 0 4px; }
+.chart-legend-item { font-size: 0.75rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+.chart-legend-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chart-legend-target { background: var(--text-muted); }
+.chart-legend-smoked { background: var(--danger); }
 
 .quote-card {
   text-align: center;
