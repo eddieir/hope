@@ -866,11 +866,11 @@
             <span class="tally-of">of ${target} target today</span>
           </div>
           <div class="craving-actions">
-            <button class="btn primary" id="logCigarette">I smoked one 🚬</button>
-            <button class="btn ghost" id="logCraving">I had a craving — resisted 💪</button>
+            <button class="btn primary" id="logCigarette">Log smoke 🚬</button>
+            <button class="btn ghost" id="logCraving">Log resisted craving 💪</button>
           </div>
-          <button class="btn ghost delay-btn" id="logDelayed">⏳ I delayed a craving</button>
-          <button class="btn ghost delay-btn" id="startDelayBtn">▶ Start a 10-min delay timer</button>
+          <button class="btn ghost delay-btn" id="logDelayed">Log delayed craving ⏳</button>
+          <button class="btn ghost delay-btn" id="startDelayBtn">Start 10-min delay ▶</button>
           <div class="log-list" id="recentLogs"></div>
         </div>
 
@@ -919,11 +919,11 @@
             <span class="tally-of">smoked today</span>
           </div>
           <div class="craving-actions">
-            <button class="btn primary" id="logCraving">I had a craving — resisted 💪</button>
-            <button class="btn ghost" id="logCigarette">I smoked one</button>
+            <button class="btn primary" id="logCraving">Log resisted craving 💪</button>
+            <button class="btn ghost" id="logCigarette">Log smoke 🚬</button>
           </div>
-          <button class="btn ghost delay-btn" id="logDelayed">⏳ I delayed a craving</button>
-          <button class="btn ghost delay-btn" id="startDelayBtn">▶ Start a 10-min delay timer</button>
+          <button class="btn ghost delay-btn" id="logDelayed">Log delayed craving ⏳</button>
+          <button class="btn ghost delay-btn" id="startDelayBtn">Start 10-min delay ▶</button>
           <div class="log-list" id="recentLogs"></div>
         </div>
 
@@ -1183,9 +1183,33 @@
 
   /* ---------- service worker ---------- */
 
+  function showUpdateBanner() {
+    if (document.getElementById("swUpdateBanner")) return;
+    const banner = document.createElement("div");
+    banner.id = "swUpdateBanner";
+    banner.className = "update-banner";
+    banner.innerHTML = `
+      <span>New version available</span>
+      <button class="btn primary" id="swReloadBtn">Reload</button>
+    `;
+    document.body.appendChild(banner);
+    document.getElementById("swReloadBtn").addEventListener("click", () => location.reload());
+  }
+
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
+      navigator.serviceWorker.register("sw.js").then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          // If something is already controlling this page when the new worker is found, this is
+          // a genuine update to an existing install — not the very first ever service-worker install.
+          const isRealUpdate = !!navigator.serviceWorker.controller;
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "activated" && isRealUpdate) showUpdateBanner();
+          });
+        });
+      }).catch(() => {});
     });
   }
 
