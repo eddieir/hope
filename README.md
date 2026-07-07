@@ -4,13 +4,6 @@ A small, no-nonsense quit-smoking app. No login, no backend, no tracking pixels,
 
 Live at: **[horizion.netlify.app](https://horizion.netlify.app)**
 
-few screenshoots 
-
-<img width="810" height="347" alt="Screenshot 2026-07-07 at 10 38 31" src="https://github.com/user-attachments/assets/2fe9b9bc-0d66-4b63-a51e-1fb4fd8dd56a" />
-<img width="851" height="429" alt="Screenshot 2026-07-07 at 10 38 44" src="https://github.com/user-attachments/assets/74af3000-2ea2-4d95-8b43-07ab615d979f" />
-<img width="820" height="541" alt="Screenshot 2026-07-07 at 10 38 53" src="https://github.com/user-attachments/assets/24474893-1706-4493-bb3c-59dc95061bda" />
-<img width="785" height="408" alt="Screenshot 2026-07-07 at 10 38 58" src="https://github.com/user-attachments/assets/c923c16d-b1e2-407e-9dd0-4dfef87ba86c" />
-<img width="863" height="593" alt="Screenshot 2026-07-07 at 10 39 02" src="https://github.com/user-attachments/assets/1893c24f-9ec7-4e7c-883e-4a2471c91bbe" />
 
 
 ## Why this exists
